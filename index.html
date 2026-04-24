@@ -433,29 +433,31 @@ const DrawingCanvas = forwardRef(function DrawingCanvas({activeTool,drawColor,li
 
   return <canvas ref={ref} style={{position:'absolute',top:0,left:0,width:FW,height:FH,
     cursor:activeTool==='eraser'?'cell':activeTool==='text'?'text':activeTool==='select'?'default':'crosshair',
-    pointerEvents:activeTool==='select'?'none':'all',touchAction:'none'}}
+    pointerEvents:(activeTool==='select'||activeTool==='assign')?'none':'all',touchAction:'none'}}
     onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp}/>;
 });
 
 // ═══════════════════════════════════════════
 // PLAYER DOT (larger for iPad)
 // ═══════════════════════════════════════════
-function PlayerDot({player,teamColor,showLabel,activeTool,onDragStart,isAnim,isOpp}){
+function PlayerDot({player,teamColor,showLabel,activeTool,onDragStart,isAnim,isOpp,hasAssign}){
   const isGK=player.pos==='GK';
   const sz=isOpp?22:24;
   const col=isOpp?'#4a90ff':teamColor;
   const px=player.x*FW-sz/2,py=player.y*FH-sz/2;
+  const canDrag=activeTool==='select';
+  const noEvents=activeTool==='assign';
   return(
-    <div onPointerDown={activeTool==='select'&&!isOpp?e=>onDragStart(e,player.id):undefined}
+    <div onPointerDown={canDrag?e=>onDragStart(e,player.id):undefined}
       style={{position:'absolute',left:px,top:py,width:sz,height:sz,borderRadius:'50%',
         background:isGK?(isOpp?'#0d1f3c':'#111'):col,
-        border:`2px solid ${isGK?col:'rgba(255,255,255,0.9)'}`,
+        border:`2px solid ${hasAssign?'#ffd700':isGK?col:'rgba(255,255,255,0.9)'}`,
         display:'flex',alignItems:'center',justifyContent:'center',
-        cursor:activeTool==='select'&&!isOpp?'grab':'default',
+        cursor:canDrag?'grab':'default',
         userSelect:'none',touchAction:'none',
-        boxShadow:`0 2px 10px rgba(0,0,0,0.55), 0 0 0 1px rgba(0,0,0,0.2)`,
+        boxShadow:hasAssign?`0 0 10px rgba(255,215,0,0.6),0 2px 10px rgba(0,0,0,0.55)`:`0 2px 10px rgba(0,0,0,0.55), 0 0 0 1px rgba(0,0,0,0.2)`,
         transition:isAnim?'none':'left .45s cubic-bezier(.34,1.56,.64,1), top .45s cubic-bezier(.34,1.56,.64,1)',
-        zIndex:isOpp?8:10, pointerEvents:activeTool==='select'&&!isOpp?'all':'none',
+        zIndex:isOpp?8:10, pointerEvents:noEvents?'none':canDrag?'all':'none',
         opacity:isOpp?.8:1,
       }}>
       <span style={{fontSize:isOpp?7:8,fontWeight:800,color:isGK?col:'#fff',lineHeight:1,pointerEvents:'none'}}>
@@ -484,6 +486,39 @@ const IPlay   =()=><svg viewBox="0 0 20 20" width="14" height="14" fill="current
 const IStop   =()=><svg viewBox="0 0 20 20" width="12" height="12" fill="currentColor"><rect x="4" y="4" width="12" height="12" rx="1.5"/></svg>;
 const ILines  =()=><svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="4" y1="4" x2="16" y2="16"/><line x1="16" y1="4" x2="4" y2="16"/><circle cx="10" cy="10" r="3"/></svg>;
 const IOppo   =()=><svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="10" cy="10" r="7"/><line x1="6" y1="10" x2="14" y2="10" stroke="currentColor" strokeWidth="1.5"/></svg>;
+const IAssign =()=><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="5" cy="15" r="2.5"/><circle cx="15" cy="5" r="2.5"/><line x1="7" y1="13" x2="13" y2="7"/><polyline points="10,5 15,5 15,10"/></svg>;
+
+// ═══════════════════════════════════════════
+// ASSIGNMENT OVERLAY
+// ═══════════════════════════════════════════
+function AssignmentOverlay({assignments, players, oppPlayers, preview}){
+  const byKey={};
+  players.forEach(p=>byKey[`p${p.id}`]={x:p.x*FW,y:p.y*FH});
+  oppPlayers.forEach(p=>byKey[p.id]={x:p.x*FW,y:p.y*FH});
+  function Arrow({fx,fy,tx,ty,col,opacity=1}){
+    const ang=Math.atan2(ty-fy,tx-fx),sz=11,av=0.44;
+    return(
+      <g opacity={opacity}>
+        <line x1={fx} y1={fy} x2={tx} y2={ty} stroke={col} strokeWidth={2.2} strokeDasharray="6 4"/>
+        <polygon points={`${tx},${ty} ${tx-sz*Math.cos(ang-av)},${ty-sz*Math.sin(ang-av)} ${tx-sz*Math.cos(ang+av)},${ty-sz*Math.sin(ang+av)}`} fill={col}/>
+        <circle cx={fx} cy={fy} r={5} fill="none" stroke={col} strokeWidth={1.5} strokeDasharray="2 2"/>
+      </g>
+    );
+  }
+  return(
+    <svg style={{position:'absolute',top:0,left:0,width:FW,height:FH,pointerEvents:'none',zIndex:15}} viewBox={`0 0 ${FW} ${FH}`}>
+      {Object.entries(assignments).map(([key,dest])=>{
+        const from=byKey[key]; if(!from) return null;
+        const col=key.startsWith('o')?'#4a90ff':'#ffd700';
+        return <Arrow key={key} fx={from.x} fy={from.y} tx={dest.x*FW} ty={dest.y*FH} col={col}/>;
+      })}
+      {preview&&(()=>{
+        const col=preview.playerId.startsWith('o')?'#4a90ff':'#ffd700';
+        return <Arrow fx={preview.fromX} fy={preview.fromY} tx={preview.toX} ty={preview.toY} col={col} opacity={0.55}/>;
+      })()}
+    </svg>
+  );
+}
 
 // ═══════════════════════════════════════════
 // IPAD STATUS BAR
@@ -527,16 +562,22 @@ function TacticalBoardIPad(){
   const [animTime,setAnimTime]=useState(0);
   const [animPos,setAnimPos]=useState(null);
   const [textInput,setTextInput]=useState(null);
+  const [oppPlayers,setOppPlayers]=useState([...OPP_BY_FORMATION[11]]);
+  const [assignments,setAssignments]=useState({});
+  const [assignPreview,setAssignPreview]=useState(null);
+  const [assignPlaying,setAssignPlaying]=useState(false);
 
   const drawRef=useRef(null);
   const undoStack=useRef([]);
   const animStart=useRef(null),animFrame=useRef(null);
   const dragging=useRef(null),fieldRef=useRef(null);
-
+  const assignAnimRef=useRef(null),assignStartRef=useRef(null),assignStartPos=useRef(null);
 
   // Formation
   function changeFormation(fk){
     setFormation(fk); setPlayers(getInitial(fk));
+    setOppPlayers([...OPP_BY_FORMATION[fk]]);
+    setAssignments({}); setAssignPreview(null);
     stopAnim(); setSelTactic(null);
   }
 
@@ -573,9 +614,10 @@ function TacticalBoardIPad(){
     return players.map(p=>{const a=animPos[p.id];return a?{...p,x:a.x,y:a.y}:p;});
   },[players,animPos]);
 
-  // Drag
-  function onDragStart(e,id){
-    e.preventDefault(); e.stopPropagation(); dragging.current=id;
+  // Drag (team + opponent)
+  function onDragStart(e,id,isOpp){
+    e.preventDefault(); e.stopPropagation();
+    dragging.current={id,isOpp:!!isOpp};
     window.addEventListener('pointermove',onDragMove);
     window.addEventListener('pointerup',onDragEnd);
   }
@@ -584,10 +626,77 @@ function TacticalBoardIPad(){
     const r=fieldRef.current.getBoundingClientRect();
     const x=Math.max(0,Math.min(1,(e.clientX-r.left)/FW));
     const y=Math.max(0,Math.min(1,(e.clientY-r.top)/FH));
-    setPlayers(p=>p.map(pl=>pl.id===dragging.current?{...pl,x,y}:pl));
-    if(animPos) setAnimPos(p=>({...p,[dragging.current]:{x,y}}));
+    const {id,isOpp}=dragging.current;
+    if(isOpp) setOppPlayers(p=>p.map(pl=>pl.id===id?{...pl,x,y}:pl));
+    else{
+      setPlayers(p=>p.map(pl=>pl.id===id?{...pl,x,y}:pl));
+      if(animPos) setAnimPos(p=>({...p,[id]:{x,y}}));
+    }
   }
   function onDragEnd(){ dragging.current=null; window.removeEventListener('pointermove',onDragMove); window.removeEventListener('pointerup',onDragEnd); }
+
+  // Assign tool
+  const ASSIGN_DUR=1.5;
+  function findNearestPlayer(cx,cy,radius=22){
+    for(const p of dispPlayers){
+      if(Math.hypot(cx-p.x*FW,cy-p.y*FH)<=radius) return {key:`p${p.id}`,px:p.x*FW,py:p.y*FH};
+    }
+    if(tweaks.showOpponent){
+      for(const p of oppPlayers){
+        if(Math.hypot(cx-p.x*FW,cy-p.y*FH)<=radius) return {key:p.id,px:p.x*FW,py:p.y*FH};
+      }
+    }
+    return null;
+  }
+  function onAssignDown(e){
+    if(activeTool!=='assign') return;
+    const r=fieldRef.current.getBoundingClientRect();
+    const cx=e.clientX-r.left,cy=e.clientY-r.top;
+    const found=findNearestPlayer(cx,cy);
+    if(found) setAssignPreview({playerId:found.key,fromX:found.px,fromY:found.py,toX:cx,toY:cy});
+  }
+  function onAssignMove(e){
+    if(!assignPreview||activeTool!=='assign') return;
+    const r=fieldRef.current.getBoundingClientRect();
+    setAssignPreview(p=>p?{...p,toX:e.clientX-r.left,toY:e.clientY-r.top}:null);
+  }
+  function onAssignUp(){
+    if(!assignPreview) return;
+    const {playerId,fromX,fromY,toX,toY}=assignPreview;
+    if(Math.hypot(toX-fromX,toY-fromY)>12){
+      setAssignments(prev=>({...prev,[playerId]:{x:toX/FW,y:toY/FH}}));
+    }
+    setAssignPreview(null);
+  }
+  function stopAssignAnim(){ if(assignAnimRef.current) cancelAnimationFrame(assignAnimRef.current); setAssignPlaying(false); }
+  function playAssignments(){
+    if(!Object.keys(assignments).length) return;
+    stopAssignAnim();
+    const sp={};
+    dispPlayers.forEach(p=>{ sp[`p${p.id}`]={x:p.x,y:p.y}; });
+    oppPlayers.forEach(p=>{ sp[p.id]={x:p.x,y:p.y}; });
+    assignStartPos.current=sp;
+    assignStartRef.current=performance.now();
+    setAssignPlaying(true);
+    function tick(now){
+      const t=Math.min((now-assignStartRef.current)/1000,ASSIGN_DUR);
+      const prog=eio(t/ASSIGN_DUR);
+      const sp=assignStartPos.current;
+      setPlayers(prev=>prev.map(p=>{
+        const dest=assignments[`p${p.id}`]; if(!dest) return p;
+        const s=sp[`p${p.id}`];
+        return{...p,x:lerp(s.x,dest.x,prog),y:lerp(s.y,dest.y,prog)};
+      }));
+      setOppPlayers(prev=>prev.map(p=>{
+        const dest=assignments[p.id]; if(!dest) return p;
+        const s=sp[p.id];
+        return{...p,x:lerp(s.x,dest.x,prog),y:lerp(s.y,dest.y,prog)};
+      }));
+      if(t<ASSIGN_DUR) assignAnimRef.current=requestAnimationFrame(tick);
+      else{ setAssignPlaying(false); setAssignments({}); setAnimPos(null); }
+    }
+    assignAnimRef.current=requestAnimationFrame(tick);
+  }
 
   // Drawing
   function saveUndo(){
@@ -667,6 +776,18 @@ function TacticalBoardIPad(){
         </div>
         {/* Actions */}
         <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          {Object.keys(assignments).length>0&&(
+            <>
+              <button onClick={playAssignments} disabled={assignPlaying} style={{height:36,padding:'0 12px',borderRadius:9,border:'none',cursor:'pointer',
+                background:assignPlaying?'rgba(255,255,255,0.06)':'#00c853',color:'#fff',fontSize:12,fontWeight:700,fontFamily:'-apple-system',
+                display:'flex',alignItems:'center',gap:5,opacity:assignPlaying?.6:1}}>
+                <IPlay/>{assignPlaying?'播放中':'播放指定'}
+              </button>
+              <button onClick={()=>setAssignments({})} title="清除指定" style={{width:36,height:36,borderRadius:9,border:'1px solid rgba(255,100,100,0.3)',background:'rgba(255,60,60,0.1)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'rgba(255,120,120,0.7)'}}>
+                <ITrash/>
+              </button>
+            </>
+          )}
           <button onClick={undo} title="復原" style={{width:36,height:36,borderRadius:9,border:'1px solid rgba(255,255,255,0.1)',background:'rgba(255,255,255,0.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'rgba(255,255,255,0.5)'}}>
             <IUndo/>
           </button>
@@ -682,6 +803,7 @@ function TacticalBoardIPad(){
         {/* LEFT TOOLBAR */}
         <div style={{width:62,flexShrink:0,display:'flex',flexDirection:'column',alignItems:'center',gap:4,paddingTop:4,paddingRight:6}}>
           {toolBtn('select',ICursor,'選擇')}
+          {toolBtn('assign',IAssign,'指定跑位')}
           {toolBtn('pencil',IPencil,'畫筆')}
           {toolBtn('arrow', IArrow,'箭頭')}
           {toolBtn('line',  ILine,'直線')}
@@ -726,19 +848,23 @@ function TacticalBoardIPad(){
 
         {/* CENTER: FIELD */}
         <div style={{flex:1,display:'flex',justifyContent:'center',alignItems:'flex-start',paddingTop:4}}>
-          <div ref={fieldRef} style={{position:'relative',width:FW,height:FH,borderRadius:8,overflow:'hidden',
-            boxShadow:'0 8px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06)',flexShrink:0}}>
+          <div ref={fieldRef}
+            onPointerDown={onAssignDown} onPointerMove={onAssignMove} onPointerUp={onAssignUp} onPointerLeave={onAssignUp}
+            style={{position:'relative',width:FW,height:FH,borderRadius:8,overflow:'hidden',
+            boxShadow:'0 8px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06)',flexShrink:0,
+            cursor:activeTool==='assign'?'crosshair':'default'}}>
             <FootballField fieldStyle={tweaks.fieldStyle}/>
             <FormationLines players={dispPlayers} formation={formation} teamColor={toolColor} show={tweaks.showFormationLines}/>
             <TacticCanvas tactic={selectedTactic} animTime={animTime} showGhosts={true} playing={animPlaying}/>
             <DrawingCanvas ref={drawRef} activeTool={activeTool} drawColor={drawColor} lineThickness={tweaks.lineThickness} onTextPlace={handleTextPlace} onBeforeStroke={saveUndo}/>
+            <AssignmentOverlay assignments={assignments} players={dispPlayers} oppPlayers={oppPlayers} preview={assignPreview}/>
             {/* Opponent dots */}
-            {tweaks.showOpponent && (OPP_BY_FORMATION[formation]||[]).map(p=>(
-              <PlayerDot key={p.id} player={p} teamColor="#4a90ff" showLabel={tweaks.showLabels} activeTool={activeTool} onDragStart={()=>{}} isAnim={false} isOpp={true}/>
+            {tweaks.showOpponent && oppPlayers.map(p=>(
+              <PlayerDot key={p.id} player={p} teamColor="#4a90ff" showLabel={tweaks.showLabels} activeTool={activeTool} onDragStart={(e,id)=>onDragStart(e,id,true)} isAnim={assignPlaying} isOpp={true} hasAssign={!!assignments[p.id]}/>
             ))}
             {/* My team dots */}
             {dispPlayers.map(p=>(
-              <PlayerDot key={p.id} player={p} teamColor={toolColor} showLabel={tweaks.showLabels} activeTool={activeTool} onDragStart={onDragStart} isAnim={animPlaying} isOpp={false}/>
+              <PlayerDot key={p.id} player={p} teamColor={toolColor} showLabel={tweaks.showLabels} activeTool={activeTool} onDragStart={(e,id)=>onDragStart(e,id,false)} isAnim={animPlaying||assignPlaying} isOpp={false} hasAssign={!!assignments[`p${p.id}`]}/>
             ))}
             {textInput&&(
               <div style={{position:'absolute',left:textInput.x,top:textInput.y,zIndex:200}}>
