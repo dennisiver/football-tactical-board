@@ -57,23 +57,23 @@ const TWEAK_DEFAULTS = {
 const FORMATIONS = {
   6:  { name:'6人制', shape:'2-2-1', players:[
     {id:1,pos:'GK',x:.50,y:.90},{id:2,pos:'DF',x:.28,y:.73},{id:3,pos:'DF',x:.72,y:.73},
-    {id:4,pos:'MF',x:.28,y:.50},{id:5,pos:'MF',x:.72,y:.50},{id:6,pos:'FW',x:.50,y:.22},
+    {id:4,pos:'MF',x:.28,y:.58},{id:5,pos:'MF',x:.72,y:.58},{id:6,pos:'FW',x:.50,y:.50},
   ], lines:[[1,2],[1,3],[2,3],[2,4],[3,5],[4,5],[4,6],[5,6]]},
   8:  { name:'8人制', shape:'2-3-2', players:[
     {id:1,pos:'GK',x:.50,y:.90},{id:2,pos:'DF',x:.22,y:.75},{id:3,pos:'DF',x:.78,y:.75},
-    {id:4,pos:'MF',x:.18,y:.55},{id:5,pos:'MF',x:.50,y:.53},{id:6,pos:'MF',x:.82,y:.55},
-    {id:7,pos:'FW',x:.33,y:.26},{id:8,pos:'FW',x:.67,y:.26},
+    {id:4,pos:'MF',x:.18,y:.57},{id:5,pos:'MF',x:.50,y:.55},{id:6,pos:'MF',x:.82,y:.57},
+    {id:7,pos:'FW',x:.38,y:.50},{id:8,pos:'FW',x:.62,y:.50},
   ], lines:[[1,2],[1,3],[2,3],[2,4],[3,6],[4,5],[5,6],[4,7],[5,7],[5,8],[6,8],[7,8]]},
   10: { name:'10人制', shape:'3-3-3', players:[
     {id:1,pos:'GK',x:.50,y:.90},{id:2,pos:'DF',x:.18,y:.77},{id:3,pos:'DF',x:.50,y:.79},{id:4,pos:'DF',x:.82,y:.77},
-    {id:5,pos:'MF',x:.22,y:.56},{id:6,pos:'MF',x:.50,y:.54},{id:7,pos:'MF',x:.78,y:.56},
-    {id:8,pos:'FW',x:.22,y:.27},{id:9,pos:'FW',x:.50,y:.22},{id:10,pos:'FW',x:.78,y:.27},
+    {id:5,pos:'MF',x:.22,y:.58},{id:6,pos:'MF',x:.50,y:.56},{id:7,pos:'MF',x:.78,y:.58},
+    {id:8,pos:'FW',x:.28,y:.52},{id:9,pos:'FW',x:.50,y:.50},{id:10,pos:'FW',x:.72,y:.52},
   ], lines:[[1,2],[1,3],[1,4],[2,3],[3,4],[2,5],[3,6],[4,7],[5,6],[6,7],[5,8],[6,9],[7,10],[8,9],[9,10]]},
   11: { name:'11人制', shape:'4-3-3', players:[
     {id:1,pos:'GK',x:.50,y:.90},{id:2,pos:'RB',x:.15,y:.76},{id:3,pos:'CB',x:.37,y:.79},
-    {id:4,pos:'CB',x:.63,y:.79},{id:5,pos:'LB',x:.85,y:.76},{id:6,pos:'CM',x:.25,y:.55},
-    {id:7,pos:'CM',x:.50,y:.52},{id:8,pos:'CM',x:.75,y:.55},{id:9,pos:'RW',x:.15,y:.26},
-    {id:10,pos:'CF',x:.50,y:.20},{id:11,pos:'LW',x:.85,y:.26},
+    {id:4,pos:'CB',x:.63,y:.79},{id:5,pos:'LB',x:.85,y:.76},{id:6,pos:'CM',x:.25,y:.57},
+    {id:7,pos:'CM',x:.50,y:.54},{id:8,pos:'CM',x:.75,y:.57},{id:9,pos:'RW',x:.20,y:.52},
+    {id:10,pos:'CF',x:.50,y:.50},{id:11,pos:'LW',x:.80,y:.52},
   ], lines:[[1,2],[1,3],[1,4],[1,5],[2,3],[3,4],[4,5],[2,6],[3,6],[3,7],[4,7],[4,8],[5,8],[6,7],[7,8],[6,9],[7,10],[8,11]]},
 };
 
@@ -81,7 +81,7 @@ const FORMATIONS = {
 const OPP_BY_FORMATION = {
   6: [
     {id:'o1',pos:'GK',x:.50,y:.10},{id:'o2',pos:'DF',x:.28,y:.27},{id:'o3',pos:'DF',x:.72,y:.27},
-    {id:'o4',pos:'MF',x:.28,y:.50},{id:'o5',pos:'MF',x:.72,y:.50},{id:'o6',pos:'FW',x:.50,y:.78},
+    {id:'o4',pos:'MF',x:.28,y:.42},{id:'o5',pos:'MF',x:.72,y:.42},{id:'o6',pos:'FW',x:.50,y:.78},
   ],
   8: [
     {id:'o1',pos:'GK',x:.50,y:.10},{id:'o2',pos:'DF',x:.22,y:.25},{id:'o3',pos:'DF',x:.78,y:.25},
@@ -491,32 +491,56 @@ const IAssign =()=><svg viewBox="0 0 20 20" width="18" height="18" fill="none" s
 // ═══════════════════════════════════════════
 // ASSIGNMENT OVERLAY
 // ═══════════════════════════════════════════
-function AssignmentOverlay({assignments, players, oppPlayers, preview}){
+function AssignmentOverlay({assignments, players, oppPlayers, ballPos, preview}){
   const byKey={};
   players.forEach(p=>byKey[`p${p.id}`]={x:p.x*FW,y:p.y*FH});
   oppPlayers.forEach(p=>byKey[p.id]={x:p.x*FW,y:p.y*FH});
-  function Arrow({fx,fy,tx,ty,col,opacity=1}){
+  if(ballPos) byKey['ball']={x:ballPos.x*FW,y:ballPos.y*FH};
+  function Arrow({fx,fy,tx,ty,col,isBall,opacity=1}){
     const ang=Math.atan2(ty-fy,tx-fx),sz=11,av=0.44;
     return(
       <g opacity={opacity}>
         <line x1={fx} y1={fy} x2={tx} y2={ty} stroke={col} strokeWidth={2.2} strokeDasharray="6 4"/>
         <polygon points={`${tx},${ty} ${tx-sz*Math.cos(ang-av)},${ty-sz*Math.sin(ang-av)} ${tx-sz*Math.cos(ang+av)},${ty-sz*Math.sin(ang+av)}`} fill={col}/>
-        <circle cx={fx} cy={fy} r={5} fill="none" stroke={col} strokeWidth={1.5} strokeDasharray="2 2"/>
+        {isBall
+          ? <circle cx={fx} cy={fy} r={6} fill="rgba(255,255,255,0.15)" stroke={col} strokeWidth={1.5}/>
+          : <circle cx={fx} cy={fy} r={5} fill="none" stroke={col} strokeWidth={1.5} strokeDasharray="2 2"/>
+        }
       </g>
     );
   }
+  function arrowCol(key){ return key==='ball'?'#fff':key.startsWith('o')?'#4a90ff':'#ffd700'; }
   return(
     <svg style={{position:'absolute',top:0,left:0,width:FW,height:FH,pointerEvents:'none',zIndex:15}} viewBox={`0 0 ${FW} ${FH}`}>
       {Object.entries(assignments).map(([key,dest])=>{
         const from=byKey[key]; if(!from) return null;
-        const col=key.startsWith('o')?'#4a90ff':'#ffd700';
-        return <Arrow key={key} fx={from.x} fy={from.y} tx={dest.x*FW} ty={dest.y*FH} col={col}/>;
+        return <Arrow key={key} fx={from.x} fy={from.y} tx={dest.x*FW} ty={dest.y*FH} col={arrowCol(key)} isBall={key==='ball'}/>;
       })}
       {preview&&(()=>{
-        const col=preview.playerId.startsWith('o')?'#4a90ff':'#ffd700';
-        return <Arrow fx={preview.fromX} fy={preview.fromY} tx={preview.toX} ty={preview.toY} col={col} opacity={0.55}/>;
+        const col=arrowCol(preview.playerId);
+        return <Arrow fx={preview.fromX} fy={preview.fromY} tx={preview.toX} ty={preview.toY} col={col} isBall={preview.playerId==='ball'} opacity={0.55}/>;
       })()}
     </svg>
+  );
+}
+
+// ═══════════════════════════════════════════
+// BALL DOT
+// ═══════════════════════════════════════════
+function BallDot({pos, activeTool, onBallDragStart, hasAssign}){
+  const bx=pos.x*FW, by=pos.y*FH;
+  const canDrag=activeTool==='select';
+  return(
+    <div onPointerDown={canDrag?onBallDragStart:undefined}
+      style={{position:'absolute',left:bx-8,top:by-8,width:16,height:16,borderRadius:'50%',
+        background:'radial-gradient(circle at 38% 35%,#fff 0%,#ddd 55%,#bbb 100%)',
+        border:hasAssign?'2px solid #ffd700':'1.5px solid rgba(60,60,60,0.7)',
+        cursor:canDrag?'grab':'default',userSelect:'none',touchAction:'none',
+        boxShadow:hasAssign
+          ?'0 0 12px rgba(255,215,0,0.7),0 2px 8px rgba(0,0,0,0.6)'
+          :'0 2px 8px rgba(0,0,0,0.7)',
+        zIndex:12,pointerEvents:activeTool==='assign'?'none':canDrag?'all':'none',
+      }}/>
   );
 }
 
@@ -563,6 +587,7 @@ function TacticalBoardIPad(){
   const [animPos,setAnimPos]=useState(null);
   const [textInput,setTextInput]=useState(null);
   const [oppPlayers,setOppPlayers]=useState([...OPP_BY_FORMATION[11]]);
+  const [ballPos,setBallPos]=useState({x:.50,y:.50});
   const [assignments,setAssignments]=useState({});
   const [assignPreview,setAssignPreview]=useState(null);
   const [assignPlaying,setAssignPlaying]=useState(false);
@@ -578,6 +603,7 @@ function TacticalBoardIPad(){
     setFormation(fk); setPlayers(getInitial(fk));
     setOppPlayers([...OPP_BY_FORMATION[fk]]);
     setAssignments({}); setAssignPreview(null);
+    setBallPos({x:.50,y:.50});
     stopAnim(); setSelTactic(null);
   }
 
@@ -586,6 +612,8 @@ function TacticalBoardIPad(){
     stopAnim();
     if(selectedTactic?.id===t.id){setSelTactic(null);setAnimTime(0);setAnimPos(null);return;}
     setFormation(t.formationKey); setPlayers(getInitial(t.formationKey));
+    setOppPlayers([...OPP_BY_FORMATION[t.formationKey]]);
+    if(t.ballStart) setBallPos({...t.ballStart});
     setSelTactic(t); setAnimTime(0); setAnimPos(null);
   }
 
@@ -614,10 +642,16 @@ function TacticalBoardIPad(){
     return players.map(p=>{const a=animPos[p.id];return a?{...p,x:a.x,y:a.y}:p;});
   },[players,animPos]);
 
-  // Drag (team + opponent)
+  // Drag (team + opponent + ball)
   function onDragStart(e,id,isOpp){
     e.preventDefault(); e.stopPropagation();
-    dragging.current={id,isOpp:!!isOpp};
+    dragging.current={id,isOpp:!!isOpp,isBall:false};
+    window.addEventListener('pointermove',onDragMove);
+    window.addEventListener('pointerup',onDragEnd);
+  }
+  function onBallDragStart(e){
+    e.preventDefault(); e.stopPropagation();
+    dragging.current={id:'ball',isOpp:false,isBall:true};
     window.addEventListener('pointermove',onDragMove);
     window.addEventListener('pointerup',onDragEnd);
   }
@@ -626,8 +660,9 @@ function TacticalBoardIPad(){
     const r=fieldRef.current.getBoundingClientRect();
     const x=Math.max(0,Math.min(1,(e.clientX-r.left)/FW));
     const y=Math.max(0,Math.min(1,(e.clientY-r.top)/FH));
-    const {id,isOpp}=dragging.current;
-    if(isOpp) setOppPlayers(p=>p.map(pl=>pl.id===id?{...pl,x,y}:pl));
+    const {id,isOpp,isBall}=dragging.current;
+    if(isBall){ setBallPos({x,y}); }
+    else if(isOpp) setOppPlayers(p=>p.map(pl=>pl.id===id?{...pl,x,y}:pl));
     else{
       setPlayers(p=>p.map(pl=>pl.id===id?{...pl,x,y}:pl));
       if(animPos) setAnimPos(p=>({...p,[id]:{x,y}}));
@@ -638,6 +673,8 @@ function TacticalBoardIPad(){
   // Assign tool
   const ASSIGN_DUR=1.5;
   function findNearestPlayer(cx,cy,radius=22){
+    if(Math.hypot(cx-ballPos.x*FW,cy-ballPos.y*FH)<=radius)
+      return {key:'ball',px:ballPos.x*FW,py:ballPos.y*FH};
     for(const p of dispPlayers){
       if(Math.hypot(cx-p.x*FW,cy-p.y*FH)<=radius) return {key:`p${p.id}`,px:p.x*FW,py:p.y*FH};
     }
@@ -675,6 +712,7 @@ function TacticalBoardIPad(){
     const sp={};
     dispPlayers.forEach(p=>{ sp[`p${p.id}`]={x:p.x,y:p.y}; });
     oppPlayers.forEach(p=>{ sp[p.id]={x:p.x,y:p.y}; });
+    sp['ball']={x:ballPos.x,y:ballPos.y};
     assignStartPos.current=sp;
     assignStartRef.current=performance.now();
     setAssignPlaying(true);
@@ -692,6 +730,10 @@ function TacticalBoardIPad(){
         const s=sp[p.id];
         return{...p,x:lerp(s.x,dest.x,prog),y:lerp(s.y,dest.y,prog)};
       }));
+      if(assignments['ball']){
+        const dest=assignments['ball'],s=sp['ball'];
+        setBallPos({x:lerp(s.x,dest.x,prog),y:lerp(s.y,dest.y,prog)});
+      }
       if(t<ASSIGN_DUR) assignAnimRef.current=requestAnimationFrame(tick);
       else{ setAssignPlaying(false); setAssignments({}); setAnimPos(null); }
     }
@@ -857,7 +899,8 @@ function TacticalBoardIPad(){
             <FormationLines players={dispPlayers} formation={formation} teamColor={toolColor} show={tweaks.showFormationLines}/>
             <TacticCanvas tactic={selectedTactic} animTime={animTime} showGhosts={true} playing={animPlaying}/>
             <DrawingCanvas ref={drawRef} activeTool={activeTool} drawColor={drawColor} lineThickness={tweaks.lineThickness} onTextPlace={handleTextPlace} onBeforeStroke={saveUndo}/>
-            <AssignmentOverlay assignments={assignments} players={dispPlayers} oppPlayers={oppPlayers} preview={assignPreview}/>
+            <AssignmentOverlay assignments={assignments} players={dispPlayers} oppPlayers={oppPlayers} ballPos={ballPos} preview={assignPreview}/>
+            {!animPlaying&&<BallDot pos={ballPos} activeTool={activeTool} onBallDragStart={onBallDragStart} hasAssign={!!assignments['ball']}/>}
             {/* Opponent dots */}
             {tweaks.showOpponent && oppPlayers.map(p=>(
               <PlayerDot key={p.id} player={p} teamColor="#4a90ff" showLabel={tweaks.showLabels} activeTool={activeTool} onDragStart={(e,id)=>onDragStart(e,id,true)} isAnim={assignPlaying} isOpp={true} hasAssign={!!assignments[p.id]}/>
