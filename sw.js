@@ -1,7 +1,6 @@
-const CACHE = 'tactical-board-v1';
+const CACHE = 'tactical-board-v2';
 const ASSETS = [
-  './',
-  './index.html',
+  './Football Tactical Board iPad.html',
   'https://unpkg.com/react@18.3.1/umd/react.development.js',
   'https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js',
   'https://unpkg.com/@babel/standalone@7.29.0/babel.min.js',
